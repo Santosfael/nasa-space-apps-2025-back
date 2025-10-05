@@ -6,50 +6,94 @@ import logging
 app = Flask(__name__)
 CORS(app)
 
-@app.route('/daily-probability', methods=['GET'])
-def get_daily_probability():
+# --- ROTAS DE TEMPERATURA ---
+@app.route('/temperature/daily-probability', methods=['GET'])
+def get_temperature_daily_probability():
     lat = request.args.get('lat', type=float)
     lon = request.args.get('lon', type=float)
     date_param = request.args.get('date')
+    if not all([lat, lon, date_param]): 
+        return jsonify({"error": "Parameters 'lat', 'lon', 'date' are required."}), 400
 
-    if not all([lat, lon, date_param]):
-        return jsonify({"error": "Parameters 'lat', 'lon', and 'date' are required."}), 400
-
-    # Chama o service para fazer o trabalho
-    result, city_name = service.get_daily_analysis(lat, lon, date_param)
+    result, city_name = service.get_daily_temperature_analysis(lat, lon, date_param)
     
-    if "error" in result:
+    if result and "error" in result: 
         return jsonify(result), 404
-        
-    final_response = {
-        "data_source_location": city_name,
-        "analysis": result
-    }
-    return jsonify(final_response)
+    return jsonify({"data_source_location": city_name, "analysis": result})
 
-@app.route('/hourly-probability', methods=['GET'])
-def get_hourly_probability():
+@app.route('/temperature/hourly-probability', methods=['GET'])
+def get_temperature_hourly_probability():
     lat = request.args.get('lat', type=float)
     lon = request.args.get('lon', type=float)
     date_param = request.args.get('date')
     hour_param = request.args.get('hour')
-
     if not all([lat, lon, date_param, hour_param]):
-        return jsonify({"error": "Parameters 'lat', 'lon', 'date', and 'hour' are required."}), 400
-
-    result, city_name = service.get_hourly_analysis(lat, lon, date_param, hour_param)
+        return jsonify({"error": "All parameters for hourly temperature are required."}), 400
     
-    if "error" in result:
+    result, city_name = service.get_temperature_hourly_analysis(lat, lon, date_param, hour_param)
+    
+    if result and "error" in result: 
         return jsonify(result), 404
+    return jsonify({"data_source_location": city_name, "analysis": result})
 
-    final_response = {
-        "data_source_location": city_name,
-        "analysis": result
-    }
-    return jsonify(final_response)
 
-if __name__ == '__main__':
-    app.run(debug=True)
+@app.route('/precipitation/daily-probability', methods=['GET'])
+def get_precipitation_daily_probability():
+    lat = request.args.get('lat', type=float)
+    lon = request.args.get('lon', type=float)
+    date_param = request.args.get('date')
+    if not all([lat, lon, date_param]): 
+        return jsonify({"error": "Parameters 'lat', 'lon', 'date' are required."}), 400
+
+    result, city_name = service.get_precipitation_daily_analysis(lat, lon, date_param)
+    
+    if result and "error" in result: 
+        return jsonify(result), 404
+    return jsonify({"data_source_location": city_name, "analysis": result})
+
+@app.route('/precipitation/hourly-probability', methods=['GET'])
+def get_precipitation_hourly_probability():
+    lat = request.args.get('lat', type=float)
+    lon = request.args.get('lon', type=float)
+    date_param = request.args.get('date')
+    hour_param = request.args.get('hour')
+    if not all([lat, lon, date_param, hour_param]):
+        return jsonify({"error": "All parameters for hourly precipitation are required."}), 400
+
+    result, city_name = service.get_precipitation_hourly_analysis(lat, lon, date_param, hour_param)
+
+    if result and "error" in result: 
+        return jsonify(result), 404
+    return jsonify({"data_source_location": city_name, "analysis": result})
+
+@app.route('/humidity/daily-probability', methods=['GET'])
+def get_humidity_daily_probability():
+    lat = request.args.get('lat', type=float)
+    lon = request.args.get('lon', type=float)
+    date_param = request.args.get('date')
+    if not all([lat, lon, date_param]): 
+        return jsonify({"error": "Parameters 'lat', 'lon', 'date' are required."}), 400
+
+    result, city_name = service.get_humidity_daily_analysis(lat, lon, date_param)
+    
+    if result and "error" in result: 
+        return jsonify(result), 404
+    return jsonify({"data_source_location": city_name, "analysis": result})
+
+@app.route('/humidity/hourly-probability', methods=['GET'])
+def get_humidity_hourly_probability():
+    lat = request.args.get('lat', type=float)
+    lon = request.args.get('lon', type=float)
+    date_param = request.args.get('date')
+    hour_param = request.args.get('hour')
+    if not all([lat, lon, date_param, hour_param]):
+        return jsonify({"error": "All parameters for hourly humidity are required."}), 400
+
+    result, city_name = service.get_humidity_hourly_analysis(lat, lon, date_param, hour_param)
+
+    if result and "error" in result: 
+        return jsonify(result), 404
+    return jsonify({"data_source_location": city_name, "analysis": result})
 
 if __name__ != '__main__':
     gunicorn_logger = logging.getLogger('gunicorn.error')

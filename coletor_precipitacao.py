@@ -4,18 +4,15 @@ from requests.auth import HTTPBasicAuth
 import pandas as pd
 import io
 import os
+import numpy as np
 
-# 1. Parâmetros do usuário
-lat = -8.04
-lon = -34.89
-cidade_nome_arquivo = 'recife'  # usado para nomear os arquivos de saída
+lat = -23.55
+lon = -46.63
+cidade_nome_arquivo = 'sao_paulo'
 time_start = "2000-01-01T00:00:00"
 time_end = "2024-09-30T21:00:00"
-data = "GLDAS_NOAH025_3H_2_1_Tair_f_inst"  # variável NASA/GLDAS: temperatura do ar instantânea
+data = "GLDAS_NOAH025_3H_2_1_Rainf_f_tavg"
 
-# 2. Autenticação Earthdata (leitura do .netrc)
-# Certifique-se de ter ~/.netrc com:
-# machine urs.earthdata.nasa.gov login SEU_LOGIN password SUA_SENHA
 signin_url = "https://api.giovanni.earthdata.nasa.gov/signin"
 creds = netrc.netrc().authenticators('urs.earthdata.nasa.gov')
 if creds is None:
@@ -23,7 +20,7 @@ if creds is None:
 user, _, pwd = creds
 token = requests.get(signin_url, auth=HTTPBasicAuth(user, pwd), allow_redirects=True).text.replace('"','')
 
-# 3. Função para obter a série temporal
+
 def call_time_series(lat, lon, time_start, time_end, data, token):
     query_parameters = {
         "data": data,
@@ -37,7 +34,6 @@ def call_time_series(lat, lon, time_start, time_end, data, token):
         raise RuntimeError(f"Erro na requisição: HTTP {response.status_code} - {response.text[:300]}")
     return response.text
 
-# 4. Chamar API e carregar CSV em pandas
 csv_text = call_time_series(lat, lon, time_start, time_end, data, token)
 
 lines = csv_text.splitlines()
@@ -45,27 +41,24 @@ header_index = next(i for i, line in enumerate(lines) if line.strip().lower().st
 table_csv = "\n".join(lines[header_index:])
 df = pd.read_csv(io.StringIO(table_csv))
 
- # Converte para datetime e Celsius
+df.replace(-9999.0, np.nan, inplace=True)
+
 df['time'] = pd.to_datetime(df.iloc[:, 0])
 df.set_index('time', inplace=True)
-df['temp_c'] = df['Data'] - 273.15
 
- # Cria a pasta 'data' se ela não existir
+df['precipitation_mm'] = df['Data'] * 10800
+
 os.makedirs('data', exist_ok=True)
 
-# 1. Salvar os dados HORÁRIOS
-hourly_df = df[['temp_c']].dropna()
-output_hourly = f'data/{cidade_nome_arquivo}_horarios_temperatura.csv'
+hourly_df = df[['precipitation_mm']].dropna()
+output_hourly = f'data/{cidade_nome_arquivo}_horarios_precipitacao.csv'
 hourly_df.to_csv(output_hourly)
-print(f"-> Arquivo com dados horários salvo em: {output_hourly}")
+print(f"-> Arquivo com dados de precipitação (a cada 3h) salvo em: {output_hourly}")
 
-# 2. Agrupar por dia e salvar os dados DIÁRIOS
 daily_df = df.resample('D').agg(
-    temp_avg_c=('temp_c', 'mean'),
-    temp_max_c=('temp_c', 'max'),
-    temp_min_c=('temp_c', 'min')
+    precip_total_mm=('precipitation_mm', 'sum')
 )
     
 final_daily_df = daily_df.dropna()
-output_daily = f'data/{cidade_nome_arquivo}_diarios_temperatura.csv' # Salva na pasta 'data'
+output_daily = f'data/{cidade_nome_arquivo}_diarios_precipitacao.csv'
 final_daily_df.to_csv(output_daily)
